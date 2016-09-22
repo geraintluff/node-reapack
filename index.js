@@ -84,7 +84,7 @@ function generateIndexXml(index, urlPrefix) {
 	}
 	function open(tag, attributes, inline) {
 		result += indent() + '<' + tag;
-		for (var key in attributes) {
+		for (var key in attributes || {}) {
 			if (attributes[key] != null) {
 				result += ' ' + key + '="' + xmlEscape(attributes[key] + "") + '"';
 			}
@@ -110,20 +110,48 @@ function generateIndexXml(index, urlPrefix) {
 			for (var name in categories[key]) {
 				var pack = categories[key][name];
 				open('reapack', {name: name, type: pack.type, desc: pack.description});
-					(releases[name] || []).forEach(function (release) {
-						open('version', {name: release.version, author: release.author, time: release.time});
-							for (var file in release.files) {
-								var entry = release.files[file];
-								open('source', {file: file, platform: entry.platform, type: entry.type, main: entry.main ? 'true' : null}, true);
-								result += xmlEscape(pathToUrl(file));
-								close('source', true);
-								result += '\n';
-							}
-						close('version');
+				open('metadata');
+				if (pack.readme) {
+					var markdown = fse.readFileSync(pack.readme, {encoding: 'utf-8'});
+					var rtf = require('./markdown-to-rtf')(markdown);
+					open('description', {}, 1);
+					result += xmlEscape(rtf + "");
+					close('description', 1);
+					result += '\n';
+				}
+				for (var rel in pack.links || {}) {
+					[].concat(pack.links[rel]).forEach(function (url) {
+						open('link', {rel: rel}, 1);
+						result += xmlEscape(url);
+						close('link', 1);
+						result += '\n';
 					});
+				}
+				close('metadata');
+				(releases[name] || []).forEach(function (release) {
+					open('version', {name: release.version, author: release.author, time: release.time});
+						for (var file in release.files) {
+							var entry = release.files[file];
+							open('source', {file: file, platform: entry.platform, type: entry.type, main: entry.main ? 'true' : null}, true);
+							result += xmlEscape(pathToUrl(file));
+							close('source', true);
+							result += '\n';
+						}
+					close('version');
+				});
 				close('reapack');
 			}
 		close('category');
+		open('metadata');
+		if (index.readme) {
+			var markdown = fse.readFileSync(index.readme, {encoding: 'utf-8'});
+			var rtf = require('./markdown-to-rtf')(markdown);
+			open('description', {}, 1);
+			result += xmlEscape(rtf + "");
+			close('description', 1);
+			result += '\n';
+		}
+		close('metadata');
 	}
 	close('index');
 	
