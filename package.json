@@ -1,0 +1,15 @@
+{
+  "name": "jsfx-reapack",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "xmldom": "^0.1.22",
+    "yargs": "^5.0.0"
+  }
+}
