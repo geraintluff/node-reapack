@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "xmldom": "^0.1.22",
+    "fs-extra": "^0.30.0",
     "yargs": "^5.0.0"
   }
 }
