@@ -121,6 +121,9 @@ function generateIndexXml(index, urlPrefix) {
 				}
 				for (var rel in pack.links || {}) {
 					[].concat(pack.links[rel]).forEach(function (url) {
+						if (!/\:\/\//.test(url)) {
+							url = pathToUrl(url);
+						}
 						open('link', {rel: rel}, 1);
 						result += xmlEscape(url);
 						close('link', 1);
@@ -150,6 +153,17 @@ function generateIndexXml(index, urlPrefix) {
 			result += xmlEscape(rtf + "");
 			close('description', 1);
 			result += '\n';
+		}
+		for (var rel in index.links || {}) {
+			[].concat(index.links[rel]).forEach(function (url) {
+				if (!/\:\/\//.test(url)) {
+					url = pathToUrl(url);
+				}
+				open('link', {rel: rel}, 1);
+				result += xmlEscape(url);
+				close('link', 1);
+				result += '\n';
+			});
 		}
 		close('metadata');
 	}
