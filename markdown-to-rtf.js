@@ -38,7 +38,7 @@ var convertors = {
 		return '' + children + '\\line\\line ';
 	},
 	bulletlist: function (attrs, children) {
-		return '{\\par ' + children + '}';
+		return '{\\par ' + children + '}\\line';
 	},
 	listitem: function (attrs, children) {
 		return '\\bullet\\tab ' + children + '\\line ';

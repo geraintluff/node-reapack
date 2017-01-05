@@ -1,16 +1,26 @@
 {
-  "name": "jsfx-reapack",
-  "version": "1.0.0",
-  "description": "",
+  "name": "reapack",
+  "version": "1.0.2",
+  "description": "Command-line tool for ReaPack index file generation",
+  "tags": [
+    "jsfx",
+    "reapack",
+    "reaper"
+  ],
   "main": "index.js",
+  "bin": {
+    "reapack": "index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "colors": "^1.1.2",
     "fs-extra": "^0.30.0",
     "markdown": "^0.5.0",
+    "xml-escape": "^1.1.0",
     "yargs": "^5.0.0"
   }
 }
