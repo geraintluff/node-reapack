@@ -1,3 +1,4 @@
+#!/usr/bin/node
 "strict";
 var fse = require('fs-extra');
 var path = require('path'), posixPath = path.posix;
@@ -226,6 +227,42 @@ var args = require('yargs')
 		for (var name in index.packages || {}) {
 			var pack = index.packages[name];
 			console.log('\t' + colors.cyan(name) + ' (' + pack.type + ' in "' + pack.category + '")');
+		}
+	})
+	.command('install', 'Installs into REAPER as if from ReaPack (for development)', function (yargs) {
+		return yargs
+			.usage('Usage: $0 install <REAPER-data-directory>')
+			.demand(1, 1, 'Missing REAPER data directory');
+	}, function (args) {
+		var reaperDir = args._[1];
+		for (var name in index.packages) {
+			var pack = index.packages[name];
+			var typeFolders = {
+				'script': 'Scripts',
+				'effect': 'Effects',
+				'data': 'Data',
+				'extension': 'UserPlugins',
+				'theme': 'ColorThemes',
+				'langpack': 'LangPack',
+				'webinterface': 'reaper_www_root',
+			};
+			if (!typeFolders[pack.type]) {
+				console.log('Cannot install pack type: ' + pack.type);
+				continue;
+			}
+
+			var packDir = path.join(reaperDir, typeFolders[pack.type]);
+			if (pack.type == 'script' || pack.type == 'effect') {
+				packDir = path.join(packDir, index.name, pack.category);
+			}
+			var subDir = pack.prefix || friendlyName(name);
+			packDir = path.join(packDir, subDir);
+			fse.ensureDirSync(packDir);
+			for (var filename in pack.files) {
+				var newFile = path.join(packDir, filename);
+				fse.copySync(filename, newFile);
+				console.log('installed: ' + path.relative(reaperDir, newFile));
+			}
 		}
 	})
 	.command('package', 'Create/update a package', function (yargs) {
