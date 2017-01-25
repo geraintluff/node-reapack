@@ -14,6 +14,8 @@ Each release copies the applicable files to a new release folder, with a JSON fi
 npm install -g reapack
 ```
 
+If a global install (`-g`) doesn't work, then you can do a local install, and instead of just running `reapack`, run `node node_modules/reapack`.
+
 ## How to use it
 
 The command-line attempts to be intuitive (use `--help` on any command to get more information), but here are some examples to get started:
@@ -21,7 +23,7 @@ The command-line attempts to be intuitive (use `--help` on any command to get mo
 View the index and list all packages:
 
 ```
-> node reapack index
+> reapack index
 
 Geraint's JSFX
 --------------
@@ -37,7 +39,7 @@ packages:
 View a package:
 
 ```
-> node reapack package "Bad Connection"
+> reapack package "Bad Connection"
 Bad Connection
 --------------
 type:           effect
@@ -53,13 +55,13 @@ links:
 Add/remove files:
 
 ```
-> node reapack package "Bad Connection" --add "some-file.jsfx" --remove "other-file.jsfx"
+> reapack package "Bad Connection" --add "some-file.jsfx" --remove "other-file.jsfx"
 ```
 
 Simulate a ReaPack install (useful when developing your effects):
 
 ```
-> node reapack install C:\Users\Geraint\AppData\Roaming\REAPER
+> reapack install C:\Users\Geraint\AppData\Roaming\REAPER
 ```
 
 ## TODO
