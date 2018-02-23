@@ -1,4 +1,4 @@
-#!/usr/bin/node
+#!/usr/local/bin/node
 "strict";
 var fse = require('fs-extra');
 var path = require('path'), posixPath = path.posix;
