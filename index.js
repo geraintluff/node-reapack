@@ -73,7 +73,7 @@ function collectReleases(releases, directory) {
 function generateIndexXml(index, urlPrefix) {
 	var result = '<?xml version="1.0" encoding="utf-8"?>\n';
 	var indentLevel = 0;
-	
+
 	var releases = collectReleases();
 	var categories = {};
 	for (var name in index.packages || {}) {
@@ -81,7 +81,7 @@ function generateIndexXml(index, urlPrefix) {
 		categories[pack.category] = categories[pack.category] || {};
 		categories[pack.category][name] = pack;
 	}
-	
+
 	function indent() {
 		return (new Array(indentLevel + 1)).join('\t');
 	}
@@ -105,7 +105,7 @@ function generateIndexXml(index, urlPrefix) {
 	function pathToUrl(file) {
 		return urlPrefix + posixPath.normalize(file).split(/[\\\/]/g).map(encodeURIComponent).join('/');
 	}
-	
+
 	// Generate XML
 	open('index', {version: 1, name: index.name, 'generated-by': 'https://www.npmjs.com/package/reapack'});
 	open('metadata');
@@ -171,7 +171,7 @@ function generateIndexXml(index, urlPrefix) {
 		close('category');
 	}
 	close('index');
-	
+
 	fse.outputFileSync('index.xml', result);
 	addToGit('index.xml');
 	return result;
@@ -212,7 +212,7 @@ var args = require('yargs')
 		if (args.base) {
 			index.url = args.base;
 		}
-		
+
 		console.log(colors.bold(index.name));
 		console.log(new Array(index.name.length + 1).join('-'));
 		console.log('README:\t' + index.readme);
@@ -224,10 +224,12 @@ var args = require('yargs')
 			});
 		}
 		console.log('packages:');
-		for (var name in index.packages || {}) {
+		var names = Object.keys(index.packages);
+		names.sort();
+		names.forEach(function (name, i) {
 			var pack = index.packages[name];
-			console.log('\t' + colors.cyan(name) + ' (' + pack.type + ' in "' + pack.category + '")');
-		}
+			console.log(i + '\t' + colors.cyan(name) + ' (' + pack.type + ' in "' + pack.category + '")');
+		});
 	})
 	.command('install', 'Installs into REAPER as if from ReaPack (for development)', function (yargs) {
 		return yargs
@@ -289,9 +291,15 @@ var args = require('yargs')
 			.help();
 	}, function (args) {
 		var name = args._[1];
+		var names = Object.keys(index.packages);
+		names.sort();
+		if (/^[0-9]+$/.test(name) && names[name]) {
+			name = names[name];
+		}
+
 		var packages = index.packages = index.packages || {};
 		var pack = packages[name] = packages[name] || {type: 'effect', category: 'Misc'};
-		
+
 		var files = pack.files = pack.files || {};
 		[].concat(args.add || []).forEach(function (file) {
 			files[file] = files[file] || {main: false};
@@ -302,7 +310,7 @@ var args = require('yargs')
 		[].concat(args.remove || []).forEach(function (file) {
 			delete files[file];
 		});
-		
+
 		console.log(colors.bold(name));
 		console.log(new Array(name.length + 1).join('-'));
 		console.log('type:    \t' + pack.type);
@@ -323,7 +331,7 @@ var args = require('yargs')
 				console.log('\t' + colors.red(rel) + ': ' + url);
 			});
 		}
-		
+
 		writeJson('reapack.json', index);
 		writeIndex();
 	})
@@ -337,15 +345,20 @@ var args = require('yargs')
 			.help();
 	}, function createRelease(args) {
 		var name = args._[1];
-		
+		var names = Object.keys(index.packages);
+		names.sort();
+		if (/^[0-9]+$/.test(name) && names[name]) {
+			name = names[name];
+		}
+
 		if (!name) {
 			console.log('No package name supplied - use \"*\" to bump version for all packages');
 			process.exit(1);
 		}
-		
+
 		var version = args._[2];
 		var packages = index.packages = index.packages || {};
-		
+
 		if (name == '*') {
 			var out = args.out;
 			for (var key in packages) {
@@ -363,7 +376,7 @@ var args = require('yargs')
 			console.error("Package not found: " + name);
 			process.exit(1);
 		}
-		
+
 		if (!version) {
 			if (pack.version) {
 				version = incrementVersion(pack.version + "");
@@ -380,14 +393,14 @@ var args = require('yargs')
 				}
 			}
 		}
-		
+
 		var targetDir = args._[3];
 		if (!targetDir) {
 			targetDir = 'releases/' + friendlyName(name) + '/' + friendlyName(version);
 		}
 		var subDir = pack.prefix || friendlyName(name);
 		fse.ensureDirSync(targetDir);
-		
+
 		pack.version = version;
 		var release = JSON.parse(JSON.stringify(pack));
 		release.package = name;
@@ -400,12 +413,12 @@ var args = require('yargs')
 			fse.copySync(file, newFile);
 			addToGit(newFile);
 		}
-		
+
 		writeJson(path.join(targetDir, 'reapack-version.json'), release);
-		
+
 		console.log(name + ' v' + version + ': ' + targetDir);
 		writeJson('reapack.json', index);
-		
+
 		writeIndex();
 	})
 	.demand(1)
