@@ -164,6 +164,12 @@ function generateIndexXml(index, urlPrefix) {
 							close('source', true);
 							result += '\n';
 						}
+						if (release.changeLog) {
+							open('changelog', {}, true);
+							result += '<![CDATA[' + release.changeLog + ']]>';
+							close('changelog', true);
+							result += '\n';
+						}
 					close('version');
 				});
 				close('reapack');
@@ -337,7 +343,10 @@ var args = require('yargs')
 	})
 	.command('release', 'Generates a release', function (yargs) {
 		return yargs
-			.usage("Usage: $0 release <package-name> [<version-id>]")
+			.usage("Usage: $0 release <package-name> [<version-id>] [changeLog]")
+			.option('changeLog', {
+				describe: 'changeLog message for this version'
+			})
 			.option('out', {
 				describe: 'Output directory - defaults to releases/<package>/<version>'
 			})
@@ -359,6 +368,8 @@ var args = require('yargs')
 		var version = args._[2];
 		var packages = index.packages = index.packages || {};
 
+		var changeLog = args._[3];
+
 		if (name == '*') {
 			var out = args.out;
 			for (var key in packages) {
@@ -377,7 +388,7 @@ var args = require('yargs')
 			process.exit(1);
 		}
 
-		if (!version) {
+		if (!version || version === '-') {
 			if (pack.version) {
 				version = incrementVersion(pack.version + "");
 			} else {
@@ -394,7 +405,7 @@ var args = require('yargs')
 			}
 		}
 
-		var targetDir = args._[3];
+		var targetDir = args.out;
 		if (!targetDir) {
 			targetDir = 'releases/' + friendlyName(name) + '/' + friendlyName(version);
 		}
@@ -405,6 +416,7 @@ var args = require('yargs')
 		var release = JSON.parse(JSON.stringify(pack));
 		release.package = name;
 		release.time = (new Date()).toISOString();
+		if (args.changeLog) release.changeLog = args.changeLog;
 
 		release.files = {};
 		for (var file in pack.files) {
