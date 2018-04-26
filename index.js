@@ -149,7 +149,7 @@ function generateIndexXml(index, urlPrefix) {
 	open('metadata');
 	if (index.readme) {
 		var markdown = fse.readFileSync(index.readme, {encoding: 'utf-8'});
-		var rtf = require('./markdown-to-rtf')(markdown);
+		var rtf = require('./markdown-to-rtf')(markdown, {baseUrl: index.url + '/'});
 		open('description', {}, 1);
 		result += xmlEscape(rtf + "");
 		close('description', 1);
@@ -175,7 +175,8 @@ function generateIndexXml(index, urlPrefix) {
 				open('metadata');
 				if (pack.readme) {
 					var markdown = fse.readFileSync(pack.readme, {encoding: 'utf-8'});
-					var rtf = require('./markdown-to-rtf')(markdown);
+					markdown = addRelativeMarkdownLinks(markdown, path.dirname(pack.readme));
+					var rtf = require('./markdown-to-rtf')(markdown, {baseUrl: index.url + '/'});
 					open('description', {}, 1);
 					result += xmlEscape(rtf + "");
 					close('description', 1);
@@ -235,6 +236,17 @@ function writeIndex(args) {
 	}
 }
 
+function addRelativeMarkdownLinks(markdown, prefix) {
+	return markdown.replace(/\[([^\]]+)]\(([^\)]+)\)/g, function (match, text, link) {
+		link = path.posix.join(prefix, link);
+		if (require('fs').existsSync(link)) {
+			return '[' + text + '](' + link + ')';
+		} else {
+			return match;
+		}
+	});
+}
+
 function writeHomepage() {
 	var outputFile = typeof index.homepage === 'string' ? index.homepage : 'index.html';
 	var html = `<!DOCTYPE html>
@@ -265,14 +277,7 @@ function writeHomepage() {
 	function getHtml(mdFile) {
 		var prefix = path.dirname(mdFile);
 		var markdown = require('fs').readFileSync(mdFile, 'utf8');
-		markdown = markdown.replace(/\[([^\]]+)]\(([^\)]+)\)/g, function (match, text, link) {
-			link = path.posix.join(prefix, link);
-			if (require('fs').existsSync(link)) {
-				return '[' + text + '](' + link + ')';
-			} else {
-				return match;
-			}
-		});
+		markdown = addRelativeMarkdownLinks(markdown, prefix);
 		return marked(markdown);
 	}
 
