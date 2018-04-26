@@ -4,6 +4,8 @@ var fse = require('fs-extra');
 var path = require('path'), posixPath = path.posix;
 var xmlEscape = require('xml-escape');
 var colors = require('colors/safe');
+var marked = require('marked');
+var glob = require('glob');
 
 function readJson(file, defaultValue) {
 	try {
@@ -73,6 +75,24 @@ function collectReleases(releases, directory) {
 function generateIndexXml(index, urlPrefix) {
 	var result = '<?xml version="1.0" encoding="utf-8"?>\n';
 	var indentLevel = 0;
+	index = JSON.parse(JSON.stringify(index));
+
+	function fuzzyGlob(template, name) {
+		var list = [];
+		function addToList(more) {
+			more.forEach(function (item) {
+				if (list.indexOf(item) === -1) {
+					list.push(item);
+				}
+			});
+		}
+		[].concat(template).forEach(function (template) {
+			addToList(glob.sync(template.replace('{package}', name)));
+			addToList(glob.sync(template.replace('{package}', name.replace(/ /g, '-'))));
+			addToList(glob.sync(template.replace('{package}', name.replace(/-/g, ' '))));
+		});
+		return list;
+	}
 
 	var releases = collectReleases();
 	var categories = {};
@@ -80,6 +100,24 @@ function generateIndexXml(index, urlPrefix) {
 		var pack = index.packages[name];
 		categories[pack.category] = categories[pack.category] || {};
 		categories[pack.category][name] = pack;
+		pack.links = pack.links || {};
+
+		for (var globKey in index.globFields || {}) {
+			var files = fuzzyGlob(index.globFields[globKey], name);
+			if (files.length == 1) {
+				pack[globKey] = files[0];
+			} else if (files.length > 1) {
+				pack[globKey] = files;
+			}
+		}
+		for (var globKey in index.globLinks || {}) {
+			if (!pack.links[globKey]) {
+				var files = fuzzyGlob(index.globLinks[globKey], name);
+				if (files.length) {
+					pack.links[globKey] = files;
+				}
+			}
+		}
 	}
 
 	function indent() {
@@ -180,7 +218,7 @@ function generateIndexXml(index, urlPrefix) {
 
 	fse.outputFileSync('index.xml', result);
 	addToGit('index.xml');
-	return result;
+	return index;
 }
 
 var index = readJson('reapack.json', {name: 'Unnamed repo - CHANGE ME'});
@@ -189,8 +227,117 @@ function writeIndex(args) {
 
 	var urlPrefix = index.url = args._[1] || index.url || 'http://example.com';
 	urlPrefix = urlPrefix.replace(/\/$/, '') + '/';
-	generateIndexXml(index, urlPrefix);
+	index = generateIndexXml(index, urlPrefix);
 	writeJson('reapack.json', index);
+
+	if (index.homepage) {
+		writeHomepage();
+	}
+}
+
+function writeHomepage() {
+	var outputFile = typeof index.homepage === 'string' ? index.homepage : 'index.html';
+	var html = `<!DOCTYPE html>
+<html>
+	<head>
+		<title>Homepage</title>
+	</head>
+	<body>
+		<!--reapack:readme-->
+			Main README gets inserted here
+		<!--/reapack:readme-->
+
+		<!--reapack:nav-->
+			Navigation section gets auto-inserted here
+		<!--/reapack:nav-->
+
+		<hr>
+		<!--reapack:packages-->
+			All packages get inserted here
+		<!--/reapack:packages-->
+	</body>
+</html>`;
+	try {
+		html = require('fs').readFileSync(outputFile, 'utf8');
+	} catch (e) {
+		// Eh...
+	}
+	function getHtml(mdFile) {
+		var prefix = path.dirname(mdFile);
+		var markdown = require('fs').readFileSync(mdFile, 'utf8');
+		markdown = markdown.replace(/\[([^\]]+)]\(([^\)]+)\)/g, function (match, text, link) {
+			link = path.posix.join(prefix, link);
+			if (require('fs').existsSync(link)) {
+				return '[' + text + '](' + link + ')';
+			} else {
+				return match;
+			}
+		});
+		return marked(markdown);
+	}
+
+	function replace(key, value) {
+		var start = '<!--reapack:' + key + '-->';
+		var end = '<!--/reapack:' + key + '-->';
+		var parts = html.split(start);
+		for (var i = 1; i < parts.length; i++) {
+			var innerParts = parts[i].split(end);
+			if (typeof value === 'function') {
+				value = value();
+			}
+			innerParts[0] = '\n' + value + '\n';
+			parts[i] = innerParts.join(end);
+		}
+		html = parts.join(start);
+	}
+
+	function htmlEscape(text) {
+		return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+	}
+
+	function packageHtml(pack, key) {
+		var html = '<h1>' + htmlEscape(key) + '</h1>';
+		if (pack.readme) {
+			html = getHtml(pack.readme);
+		}
+		return html;
+	}
+
+	replace('readme', getHtml(index.readme));
+
+	replace('nav', function () {
+		var keys = Object.keys(index.packages);
+		keys.sort();
+		return '<ul class="reapack-nav">' + keys.map(function (key) {
+			var pack = index.packages[key];
+			var html = '<a href="#' + htmlEscape(key) + '">' + htmlEscape(key) + '</a>';
+			if (pack.summary) {
+				html += ' - ' + marked(pack.summary).replace(/<p>|<\/p>/g, '');
+			} else {
+				html += ' - ' + htmlEscape(pack.category + ' ' + pack.type);
+			}
+			if (pack.links.audio) {
+				[].concat(pack.links.audio).forEach(function (href, index) {
+					if (index === 0) {
+						html += ' (<a href="' + htmlEscape(href) + '">audio demo</a>)';
+					} else {
+						html += ' (<a href="' + htmlEscape(href) + '">audio demo ' + (index + 1) + '</a>)';
+					}
+				});
+			}
+			return '<li>' + html + '</li>';
+		}).join('\n') + '</ul>'
+	});
+
+	replace('packages', function () {
+		var keys = Object.keys(index.packages);
+		keys.sort();
+		return keys.map(function (key) {
+			return '<div class="reapack-package" id="' + htmlEscape(key) + '">' + packageHtml(index.packages[key], key) + '</div>';
+		}).join('\n');
+	});
+
+	require('fs').writeFileSync(outputFile, html);
 }
 
 var useGit = index.git;
@@ -339,6 +486,9 @@ var args = require('yargs')
 		}
 
 		writeJson('reapack.json', index);
+		writeIndex();
+	})
+	.command('refresh', 'Refreshes index / homepage', function (yargs) {
 		writeIndex();
 	})
 	.command('release', 'Generates a release', function (yargs) {
