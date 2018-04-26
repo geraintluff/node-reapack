@@ -156,7 +156,7 @@ function generateIndexXml(index, urlPrefix) {
 				}
 				close('metadata');
 				(releases[name] || []).forEach(function (release) {
-					open('version', {name: release.version, author: release.author, time: release.time});
+					open('version', {name: release.version, author: release.author || index.author, time: release.time});
 						for (var file in release.files) {
 							var entry = release.files[file];
 							open('source', {file: file, platform: entry.platform, type: entry.type, main: entry.main ? 'true' : null}, true);
