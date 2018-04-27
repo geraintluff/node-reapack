@@ -381,7 +381,6 @@ function writeHomepage(index) {
 		var keys = Object.keys(index.packages);
 		keys = keys.filter(function (key) {return !index.packages[key].hidden});
 		keys.sort(compareKeys);
-		console.log(keys);
 
 		var categories = {};
 		var categoryKeys = [];
