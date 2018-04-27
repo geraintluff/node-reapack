@@ -8,13 +8,14 @@ var marked = require('marked');
 var glob = require('glob');
 
 function fileExistsWithCaseSync(filepath) {
-    var dir = path.dirname(filepath);
-    if (dir === '/' || dir === '.') return true;
-    var filenames = fse.readdirSync(dir);
-    if (filenames.indexOf(path.basename(filepath)) === -1) {
-        return false;
-    }
-    return fileExistsWithCaseSync(dir);
+	filepath = path.resolve(filepath);
+	var dir = path.dirname(filepath);
+	if (dir === '/' || dir === '.') return true;
+	var filenames = fse.readdirSync(dir);
+	if (filenames.indexOf(path.basename(filepath)) === -1) {
+		return false;
+	}
+	return fileExistsWithCaseSync(dir);
 }
 
 function readJson(file, defaultValue) {
@@ -97,6 +98,9 @@ function generateIndexXml(index, urlPrefix) {
 			});
 		}
 		function match(pattern) {
+			if (!/\*/.test(pattern)) {
+				return fileExistsWithCaseSync(pattern) ? [pattern] : [];
+			}
 			return glob.sync(pattern);
 		}
 		[].concat(template).forEach(function (template) {
@@ -132,6 +136,9 @@ function generateIndexXml(index, urlPrefix) {
 		categories[pack.category] = categories[pack.category] || {};
 		categories[pack.category][name] = pack;
 		pack.links = pack.links || {};
+		if (typeof pack.sort === 'undefined') {
+			pack.sort = Infinity;
+		}
 
 		for (var globKey in index.globFields || {}) {
 			var files = fuzzyGlob(index.globFields[globKey], name);
@@ -266,7 +273,7 @@ function writeIndex(args) {
 	var filledIndex = generateIndexXml(index, urlPrefix);
 	writeJson('reapack.json', index);
 
-	if (writeHomepage.homepage) {
+	if (filledIndex.homepage) {
 		writeHomepage(filledIndex);
 	}
 }
@@ -342,10 +349,10 @@ function writeHomepage(index) {
 			links.push('<audio controls preload="metadata" src="' + htmlEscape(href) + '"></audio>');
 		});
 		[].concat(pack.links.presets || []).forEach(function (href) {
-			links.push('<a href="' + htmlEscape(href) + '">presets</a>');
+			links.push('<a href="' + htmlEscape(href) + '" target="_blank">presets</a>');
 		});
 		[].concat(pack.links.youtube || []).forEach(function (href) {
-			links.push('<a href="' + htmlEscape(href) + '">YouTube</a>');
+			links.push('<a href="' + htmlEscape(href) + '" target="_blank">YouTube</a>');
 		});
 		if (links.length) {
 			html += '<div class="reapack-links">';
@@ -363,18 +370,30 @@ function writeHomepage(index) {
 
 	replace('readme', getHtml(index.readme));
 
+	function compareKeys(a, b) {
+		var packA = index.packages[a], packB = index.packages[b];
+		if (packA.sort < packB.sort) return -1;
+		if (packA.sort > packB.sort) return 1;
+		return (a < b) ? -1 : 1;
+	}
+
 	replace('nav', function () {
 		var keys = Object.keys(index.packages);
 		keys = keys.filter(function (key) {return !index.packages[key].hidden});
-		keys.sort();
+		keys.sort(compareKeys);
+		console.log(keys);
 
 		var categories = {};
+		var categoryKeys = [];
 		keys.forEach(function (key) {
 			var pack = index.packages[key];
 			var category = pack.category;
-			(categories[category] = categories[category] || []).push(key);
+			if (!categories[category]) {
+				categories[category] = [];
+				categoryKeys.push(category);
+			}
+			categories[category].push(key);
 		});
-		var categoryKeys = Object.keys(categories).sort();
 		return '<div class="reapack-nav">' + categoryKeys.map(function (category) {
 			var html = '<h3>' + htmlEscape(category) + '</h3>';
 			return html + '<ul>' + categories[category].map(function (key) {
@@ -385,10 +404,10 @@ function writeHomepage(index) {
 				} else {
 					html += ' - ' + htmlEscape(pack.category + ' ' + pack.type);
 				}
-				if (pack.links.audio) {
+				if (false && pack.links.audio) {
 					[].concat(pack.links.audio).forEach(function (href, index) {
 						if (index === 0) {
-							html += ' (<a href="' + htmlEscape(href) + '">audio demo</a>)';
+							html += ' (<a href="' + htmlEscape(href) + '">AUDIO</a>)';
 						} else {
 							html += ' (<a href="' + htmlEscape(href) + '">audio demo ' + (index + 1) + '</a>)';
 						}
@@ -402,7 +421,7 @@ function writeHomepage(index) {
 	replace('packages', function () {
 		var keys = Object.keys(index.packages);
 		keys = keys.filter(function (key) {return !index.packages[key].hidden});
-		keys.sort();
+		keys.sort(compareKeys);
 		return keys.map(function (key) {
 			return '<div class="reapack-package" id="' + htmlEscape(key) + '">' + packageHtml(index.packages[key], key) + '</div>';
 		}).join('\n');
