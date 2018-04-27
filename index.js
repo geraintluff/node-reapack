@@ -301,9 +301,27 @@ function writeHomepage() {
 	}
 
 	function packageHtml(pack, key) {
-		var html = '<h1>' + htmlEscape(key) + '</h1>';
+		var html = '';
+		var links = [];
+		[].concat(pack.links.audio || []).forEach(function (href) {
+			links.push('<audio controls preload="metadata" src="' + htmlEscape(href) + '"></audio>');
+		});
+		[].concat(pack.links.presets || []).forEach(function (href) {
+			links.push('<a href="' + htmlEscape(href) + '">presets</a>');
+		});
+		[].concat(pack.links.youtube || []).forEach(function (href) {
+			links.push('<a href="' + htmlEscape(href) + '">YouTube</a>');
+		});
+		if (links.length) {
+			html += '<div class="reapack-links">';
+			html += links.join('');
+			html += '</div>';
+		}
+
 		if (pack.readme) {
-			html = getHtml(pack.readme);
+			html += getHtml(pack.readme);
+		} else {
+			html += '<h1>' + htmlEscape(key) + '</h1>';
 		}
 		return html;
 	}
@@ -312,30 +330,43 @@ function writeHomepage() {
 
 	replace('nav', function () {
 		var keys = Object.keys(index.packages);
+		keys = keys.filter(function (key) {return !index.packages[key].hidden});
 		keys.sort();
-		return '<ul class="reapack-nav">' + keys.map(function (key) {
+
+		var categories = {};
+		keys.forEach(function (key) {
 			var pack = index.packages[key];
-			var html = '<a href="#' + htmlEscape(key) + '">' + htmlEscape(key) + '</a>';
-			if (pack.summary) {
-				html += ' - ' + marked(pack.summary).replace(/<p>|<\/p>/g, '');
-			} else {
-				html += ' - ' + htmlEscape(pack.category + ' ' + pack.type);
-			}
-			if (pack.links.audio) {
-				[].concat(pack.links.audio).forEach(function (href, index) {
-					if (index === 0) {
-						html += ' (<a href="' + htmlEscape(href) + '">audio demo</a>)';
-					} else {
-						html += ' (<a href="' + htmlEscape(href) + '">audio demo ' + (index + 1) + '</a>)';
-					}
-				});
-			}
-			return '<li>' + html + '</li>';
-		}).join('\n') + '</ul>'
+			var category = pack.category;
+			(categories[category] = categories[category] || []).push(key);
+		});
+		var categoryKeys = Object.keys(categories).sort();
+		return '<div class="reapack-nav">' + categoryKeys.map(function (category) {
+			var html = '<h3>' + htmlEscape(category) + '</h3>';
+			return html + '<ul>' + categories[category].map(function (key) {
+				var pack = index.packages[key];
+				var html = '<a href="#' + htmlEscape(key) + '">' + htmlEscape(key) + '</a>';
+				if (pack.summary) {
+					html += ' - ' + marked(pack.summary).replace(/<p>|<\/p>/g, '');
+				} else {
+					html += ' - ' + htmlEscape(pack.category + ' ' + pack.type);
+				}
+				if (pack.links.audio) {
+					[].concat(pack.links.audio).forEach(function (href, index) {
+						if (index === 0) {
+							html += ' (<a href="' + htmlEscape(href) + '">audio demo</a>)';
+						} else {
+							html += ' (<a href="' + htmlEscape(href) + '">audio demo ' + (index + 1) + '</a>)';
+						}
+					});
+				}
+				return '<li>' + html + '</li>';
+			}).join('\n') + '</ul>';
+		}).join('\n') + '</div>';
 	});
 
 	replace('packages', function () {
 		var keys = Object.keys(index.packages);
+		keys = keys.filter(function (key) {return !index.packages[key].hidden});
 		keys.sort();
 		return keys.map(function (key) {
 			return '<div class="reapack-package" id="' + htmlEscape(key) + '">' + packageHtml(index.packages[key], key) + '</div>';
