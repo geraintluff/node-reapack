@@ -7,6 +7,16 @@ var colors = require('colors/safe');
 var marked = require('marked');
 var glob = require('glob');
 
+function fileExistsWithCaseSync(filepath) {
+    var dir = path.dirname(filepath);
+    if (dir === '/' || dir === '.') return true;
+    var filenames = fse.readdirSync(dir);
+    if (filenames.indexOf(path.basename(filepath)) === -1) {
+        return false;
+    }
+    return fileExistsWithCaseSync(dir);
+}
+
 function readJson(file, defaultValue) {
 	try {
 		return JSON.parse(fse.readFileSync(file, {encoding: 'utf-8'}));
@@ -81,17 +91,38 @@ function generateIndexXml(index, urlPrefix) {
 		var list = [];
 		function addToList(more) {
 			more.forEach(function (item) {
-				if (list.indexOf(item) === -1) {
+				if (list.indexOf(item) === -1 && fileExistsWithCaseSync(item)) {
 					list.push(item);
 				}
 			});
 		}
+		function match(pattern) {
+			return glob.sync(pattern);
+		}
 		[].concat(template).forEach(function (template) {
-			addToList(glob.sync(template.replace('{package}', name)));
-			addToList(glob.sync(template.replace('{package}', name.replace(/ /g, '-'))));
-			addToList(glob.sync(template.replace('{package}', name.replace(/-/g, ' '))));
+			[name, name.toUpperCase(), name.toLowerCase()].forEach(function (name) {
+				addToList(match(template.replace('{package}', name)));
+				addToList(match(template.replace('{package}', name.replace(/ /g, '-'))));
+				addToList(match(template.replace('{package}', name.replace(/-/g, ' '))));
+			});
 		});
 		return list;
+	}
+	function addLinksToMarkdown(markdown, pack) {
+		var links = [];
+		[].concat(pack.links.audio || []).forEach(function (href) {
+			links.push('[audio demo](' + href + ')');
+		});
+		[].concat(pack.links.presets || []).forEach(function (href) {
+			links.push('[presets](' + href + ')');
+		});
+		[].concat(pack.links.youtube || []).forEach(function (href) {
+			links.push('[YouTube](' + href + ')');
+		});
+		if (links.length) {
+			markdown = 'Links: ' + links.join(' / ') + '\n\n' + markdown;
+		}
+		return markdown;
 	}
 
 	var releases = collectReleases();
@@ -114,6 +145,7 @@ function generateIndexXml(index, urlPrefix) {
 			if (!pack.links[globKey]) {
 				var files = fuzzyGlob(index.globLinks[globKey], name);
 				if (files.length) {
+					//console.log(globKey, name, index.globLinks[globKey], files);
 					pack.links[globKey] = files;
 				}
 			}
@@ -150,6 +182,7 @@ function generateIndexXml(index, urlPrefix) {
 	if (index.readme) {
 		var markdown = fse.readFileSync(index.readme, {encoding: 'utf-8'});
 		var rtf = require('./markdown-to-rtf')(markdown, {baseUrl: index.url + '/'});
+		//fse.writeFileSync('README.rtf', rtf);
 		open('description', {}, 1);
 		result += xmlEscape(rtf + "");
 		close('description', 1);
@@ -175,8 +208,10 @@ function generateIndexXml(index, urlPrefix) {
 				open('metadata');
 				if (pack.readme) {
 					var markdown = fse.readFileSync(pack.readme, {encoding: 'utf-8'});
+					markdown = addLinksToMarkdown(markdown, pack);
 					markdown = addRelativeMarkdownLinks(markdown, path.dirname(pack.readme));
 					var rtf = require('./markdown-to-rtf')(markdown, {baseUrl: index.url + '/'});
+					//fse.writeFileSync(name + '.rtf', rtf);
 					open('description', {}, 1);
 					result += xmlEscape(rtf + "");
 					close('description', 1);
@@ -228,11 +263,11 @@ function writeIndex(args) {
 
 	var urlPrefix = index.url = args._[1] || index.url || 'http://example.com';
 	urlPrefix = urlPrefix.replace(/\/$/, '') + '/';
-	index = generateIndexXml(index, urlPrefix);
+	var filledIndex = generateIndexXml(index, urlPrefix);
 	writeJson('reapack.json', index);
 
-	if (index.homepage) {
-		writeHomepage();
+	if (writeHomepage.homepage) {
+		writeHomepage(filledIndex);
 	}
 }
 
@@ -247,7 +282,7 @@ function addRelativeMarkdownLinks(markdown, prefix) {
 	});
 }
 
-function writeHomepage() {
+function writeHomepage(index) {
 	var outputFile = typeof index.homepage === 'string' ? index.homepage : 'index.html';
 	var html = `<!DOCTYPE html>
 <html>
