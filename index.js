@@ -346,7 +346,7 @@ function writeHomepage(index) {
 		var html = '';
 		var links = [];
 		[].concat(pack.links.audio || []).forEach(function (href) {
-			links.push('<audio controls preload="metadata" src="' + htmlEscape(href) + '"></audio>');
+			links.push('<audio controls preload="none" src="' + htmlEscape(href) + '"></audio>');
 		});
 		[].concat(pack.links.presets || []).forEach(function (href) {
 			links.push('<a href="' + htmlEscape(href) + '" target="_blank">presets</a>');
