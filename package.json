@@ -1,6 +1,6 @@
 {
   "name": "reapack",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "description": "Command-line tool for ReaPack index file generation",
   "tags": [
     "jsfx",
