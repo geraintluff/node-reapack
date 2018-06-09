@@ -393,7 +393,20 @@ function writeHomepage(index) {
 			}
 			categories[category].push(key);
 		});
-		return '<div class="reapack-nav">' + categoryKeys.map(function (category) {
+		var forumCode = categoryKeys.map(function (category) {
+			var html = '[b]' + category + '[/b]\n';
+			return html + '[list]' + categories[category].map(function (key) {
+				var pack = index.packages[key];
+				var html = '[url=' + index.url + '#' + encodeURIComponent(key) + ']' + key + '[/url]';
+				if (pack.summary) {
+					html += ' - ' + marked(pack.summary).replace(/<[^>]*>/g, '');
+				} else {
+					html += ' - ' + (pack.category + ' ' + pack.type);
+				}
+				return '[*]' + html.replace(/\s*$|^\s*/g, '');
+			}).join('\n') + '[/list]\n';
+		}).join('\n');
+		return '<!-- forum code:\n' + forumCode + '\n--><div class="reapack-nav">' + categoryKeys.map(function (category) {
 			var html = '<h3>' + htmlEscape(category) + '</h3>';
 			return html + '<ul>' + categories[category].map(function (key) {
 				var pack = index.packages[key];
