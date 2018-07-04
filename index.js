@@ -625,11 +625,13 @@ var args = require('yargs')
 		if (name == '*') {
 			var out = args.out;
 			for (var key in packages) {
-				args._[1] = key;
-				if (out) {
-					args.out = path.posix.join(out, friendlyName(key));
+				if (!packages[key].hidden) {
+					args._[1] = key;
+					if (out) {
+						args.out = path.posix.join(out, friendlyName(key));
+					}
+					createRelease(args);
 				}
-				createRelease(args);
 			}
 			return;
 		}
