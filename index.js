@@ -365,7 +365,11 @@ function writeHomepage(index) {
 		} else {
 			html += '<h1>' + htmlEscape(key) + '</h1>';
 		}
-		return html;
+		if (links.length) {
+			return '<div class="reapack-package reapack-package-with-links" id="' + htmlEscape(key) + '">' + html + '</div>';
+		} else {
+			return '<div class="reapack-package" id="' + htmlEscape(key) + '">' + html + '</div>';
+		}
 	}
 
 	replace('readme', getHtml(index.readme));
@@ -435,7 +439,7 @@ function writeHomepage(index) {
 		keys = keys.filter(function (key) {return !index.packages[key].hidden});
 		keys.sort(compareKeys);
 		return keys.map(function (key) {
-			return '<div class="reapack-package" id="' + htmlEscape(key) + '">' + packageHtml(index.packages[key], key) + '</div>';
+			return packageHtml(index.packages[key], key);
 		}).join('\n');
 	});
 
